@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, ChevronLeft, ChevronRight, Star, Edit2, X, Check, Clock, Dumbbell, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, ChevronLeft, ChevronRight, Edit2, X, Check, Dumbbell, ChevronDown } from 'lucide-react'
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, subDays, eachDayOfInterval, startOfMonth, endOfMonth, getMonth, getYear } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
@@ -175,19 +175,14 @@ function StatsBar({ workouts }) {
     else if (workout.split_id !== 'rest') streak++
   }
 
-  const withDur = trained.filter(w => w.duration_min)
-  const avgDur = withDur.length > 0
-    ? Math.round(withDur.reduce((a, w) => a + w.duration_min, 0) / withDur.length)
-    : 0
   const thisWeek = trained.filter(w => new Date(w.date) >= subDays(new Date(), 7)).length
 
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid grid-cols-3 gap-3">
       {[
         { label: 'Racha',         value: streak > 0 ? `${streak}🔥` : '0', sub: 'días seguidos' },
         { label: 'Esta semana',   value: thisWeek,                           sub: 'entrenos' },
         { label: 'Total',         value: trained.length,                     sub: 'sesiones' },
-        { label: 'Duración media',value: avgDur > 0 ? `${avgDur}′` : '—',   sub: 'por sesión' },
       ].map(({ label, value, sub }) => (
         <div key={label} className="card-sm text-center">
           <p className="text-xl font-semibold text-white">{value}</p>
@@ -223,8 +218,8 @@ function WeeklyPlanner({ workouts, customBlocks, onRefresh }) {
     const dateStr = format(day, 'yyyy-MM-dd')
     const existing = workouts.find(w => w.date === dateStr)
     const payload = blockId === 'rest'
-      ? { date: dateStr, split_id: 'rest', custom_block_id: null, performance_rating: 3 }
-      : { date: dateStr, split_id: null, custom_block_id: blockId, performance_rating: 3 }
+      ? { date: dateStr, split_id: 'rest', custom_block_id: null }
+      : { date: dateStr, split_id: null, custom_block_id: blockId }
 
     if (existing) {
       await supabase.from('workouts').update(payload).eq('id', existing.id)
@@ -319,13 +314,6 @@ function WeeklyPlanner({ workouts, customBlocks, onRefresh }) {
                         style={{ color: color || 'var(--accent-bright)' }}>
                         {cb?.name || (isRest ? 'Rest' : 'Entreno')}
                       </span>
-                      {w.performance_rating && (
-                        <div className="flex gap-0.5">
-                          {[1,2,3,4,5].map(n => (
-                            <Star key={n} size={8} className={n <= w.performance_rating ? 'fill-amber text-amber' : 'text-zinc-700'} />
-                          ))}
-                        </div>
-                      )}
                     </>
                   ) : (
                     <span className="text-zinc-700 text-[10px]">{editing ? 'Suelta aquí' : '—'}</span>
@@ -361,16 +349,8 @@ function WeeklyPlanner({ workouts, customBlocks, onRefresh }) {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-sm" style={{ color }}>{cb?.name || 'Entreno'}</span>
                 <span className="text-zinc-500 text-xs">{format(selDay, "d 'de' MMMM", { locale: es })}</span>
-                {w?.duration_min && <span className="text-zinc-600 text-xs">{w.duration_min}min</span>}
               </div>
               <div className="flex items-center gap-2">
-                {w?.performance_rating && (
-                  <div className="flex gap-0.5">
-                    {[1,2,3,4,5].map(n => (
-                      <Star key={n} size={12} className={n <= w.performance_rating ? 'fill-amber text-amber' : 'text-zinc-700'} />
-                    ))}
-                  </div>
-                )}
                 <button onClick={() => setExpanded(null)} className="text-zinc-600 hover:text-white"><X size={14} /></button>
               </div>
             </div>
@@ -416,18 +396,12 @@ function LogSession({ date, workouts, customBlocks, onClose, onRefresh }) {
   const blockExercises = cb?.exercises || []
 
   const [rows, setRows]   = useState(existing?.workout_sets?.map(s => ({ ...s, id: s.id || Date.now() })) || [])
-  const [perf, setPerf]   = useState(existing?.performance_rating || 3)
-  const [dur, setDur]     = useState(existing?.duration_min || '')
   const [notes, setNotes] = useState(existing?.notes || '')
   const [exRow, setExRow] = useState({ name: '', sets: '3', reps: '', weight: '' })
 
   async function save() {
     if (!existing) return
-    await supabase.from('workouts').update({
-      performance_rating: perf,
-      duration_min: parseFloat(dur) || null,
-      notes,
-    }).eq('id', existing.id)
+    await supabase.from('workouts').update({ notes }).eq('id', existing.id)
     await supabase.from('workout_sets').delete().eq('workout_id', existing.id)
     if (rows.length > 0) {
       await supabase.from('workout_sets').insert(
@@ -466,23 +440,6 @@ function LogSession({ date, workouts, customBlocks, onClose, onRefresh }) {
           <span className="text-zinc-400 ml-1 text-sm">{format(new Date(date + 'T12:00:00'), "d 'de' MMMM", { locale: es })}</span>
         </p>
         <button onClick={onClose}><X size={15} className="text-zinc-500" /></button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="label">Rendimiento</label>
-          <div className="flex gap-1 mt-1">
-            {[1,2,3,4,5].map(n => (
-              <button key={n} onClick={() => setPerf(n)}>
-                <Star size={20} className={n <= perf ? 'fill-amber text-amber' : 'text-zinc-700'} />
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <label className="label">Duración (min)</label>
-          <input className="input" type="number" placeholder="60" value={dur} onChange={e => setDur(e.target.value)} />
-        </div>
       </div>
 
       {/* Quick add from block exercises */}

@@ -3,6 +3,7 @@ import { Plus, Trash2, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Edit
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, addMonths, isSameDay } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
+import Salary from './Salary'
 
 const EXPENSE_CATS = ['Alquiler','Hipoteca','Alimentación','Transporte','Gasolina','Ocio','Restaurantes','Salud','Ropa','Suscripciones','Educación','Viajes','Tecnología','Hogar','Seguros','Inversión','Ahorro','Otro']
 const INCOME_CATS  = ['Salario','Freelance','Negocio','Inversiones','Alquiler cobrado','Regalo','Otro']
@@ -359,15 +360,17 @@ export default function Finance() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="section-title">Finanzas</h1>
-        <button onClick={()=>{setEditingTx(null);setShowForm(v=>!v)}} className="btn-primary">
-          {showForm?<><X size={15}/> Cerrar</>:<><Plus size={15}/> Añadir</>}
-        </button>
+        {tab!=='salary'&&(
+          <button onClick={()=>{setEditingTx(null);setShowForm(v=>!v)}} className="btn-primary">
+            {showForm?<><X size={15}/> Cerrar</>:<><Plus size={15}/> Añadir</>}
+          </button>
+        )}
       </div>
 
-      {(showForm||editingTx)&&<TxForm initial={editingTx} onSave={saveTx} onCancel={()=>{setShowForm(false);setEditingTx(null)}}/>}
+      {tab!=='salary'&&(showForm||editingTx)&&<TxForm initial={editingTx} onSave={saveTx} onCancel={()=>{setShowForm(false);setEditingTx(null)}}/>}
 
       <div className="flex gap-1.5 flex-wrap">
-        {[{v:'overview',l:'Resumen'},{v:'charts',l:'Gráficas'},{v:'calendar',l:'Calendario'},{v:'list',l:'Movimientos'}].map(({v,l})=>(
+        {[{v:'overview',l:'Resumen'},{v:'charts',l:'Gráficas'},{v:'calendar',l:'Calendario'},{v:'list',l:'Movimientos'},{v:'salary',l:'Sueldo'}].map(({v,l})=>(
           <button key={v} onClick={()=>setTab(v)} className={`btn text-sm py-1.5 ${tab===v?'bg-surface-400 text-white':'btn-ghost'}`}>{l}</button>
         ))}
       </div>
@@ -439,6 +442,7 @@ export default function Finance() {
       )}
 
       {tab==='charts'&&<Charts transactions={transactions}/>}
+      {tab==='salary'&&<Salary/>}
       {tab==='calendar'&&<TxCalendar transactions={transactions} month={month} onMonthChange={setMonth}/>}
 
       {tab==='list'&&(
